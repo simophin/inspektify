@@ -1,0 +1,35 @@
+name: Release
+
+# Publishes the fork to Maven Central under io.github.simophin. Tag a commit as
+# release/<version> (e.g. release/1.0.0-tags1) and push the tag; the version is taken from the
+# tag name, so nothing in the build needs bumping.
+on:
+  push:
+    tags:
+      - "release/*"
+
+jobs:
+  publish:
+    # iOS targets need a macOS runner.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_IN_MEMORY_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_SIGNING_IN_MEMORY_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        run: |
+          export VERSION="${GITHUB_REF_NAME#release/}"
+          echo "Publishing $VERSION"
+          ./gradlew publishAndReleaseToMavenCentral --stacktrace

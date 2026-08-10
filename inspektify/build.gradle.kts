@@ -22,17 +22,24 @@ mavenPublishing {
     } else {
         "inspektify-ktor2"
     }
+    // Fork coordinates. The upstream project publishes under io.github.bvantur; this fork carries
+    // request tagging (see docs/REQUEST_TAGS.md) ahead of BVantur/inspektify#157 and publishes
+    // under its own group so the two can never be confused. Package names are unchanged, so
+    // switching back to upstream is a one-line change for consumers.
     coordinates(
-        groupId = "io.github.bvantur",
+        groupId = "io.github.simophin",
         artifactId = inspektifyName,
-        version = libs.versions.inspektify.version.get()
+        version = System.getenv("VERSION") ?: "dev-snapshot"
     )
 
     pom {
         name.set("Inspektify")
-        description.set("KMP library for Android and iOS clients for observing real-time network traffic of the app.")
+        description.set(
+            "KMP library for Android and iOS clients for observing real-time network traffic of " +
+                "the app. Fork of BVantur/inspektify adding per-request tags."
+        )
         inceptionYear.set("2024")
-        url.set("https://github.com/BVantur/inspektify")
+        url.set("https://github.com/simophin/inspektify")
 
         licenses {
             license {
@@ -41,21 +48,31 @@ mavenPublishing {
             }
         }
 
+        // Original author retained: this is a fork of their MIT licensed work.
         developers {
             developer {
                 id.set("BVantur")
                 name.set("Blaž Vantur")
                 email.set("blaz.vantur@gmail.com")
             }
+            developer {
+                id.set("simophin")
+                name.set("Fanchao L")
+                url.set("https://github.com/simophin/")
+            }
         }
 
         scm {
-            url.set("https://github.com/BVantur/inspektify")
+            url.set("https://github.com/simophin/inspektify/")
+            connection.set("scm:git:git://github.com/simophin/inspektify.git")
+            developerConnection.set("scm:git:ssh://git@github.com/simophin/inspektify.git")
         }
     }
 
     publishToMavenCentral()
-    signAllPublications()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
 }
 
 kotlin {
