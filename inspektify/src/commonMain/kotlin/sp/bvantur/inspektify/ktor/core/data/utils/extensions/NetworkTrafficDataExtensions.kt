@@ -3,7 +3,7 @@ package sp.bvantur.inspektify.ktor.core.data.utils.extensions
 import sp.bvantur.inspektify.NetworkTrafficDataLocal
 import sp.bvantur.inspektify.ktor.client.domain.model.NetworkTraffic
 
-internal fun NetworkTrafficDataLocal.toNetworkTraffic(): NetworkTraffic = NetworkTraffic(
+internal fun NetworkTrafficDataLocal.toNetworkTraffic(tags: List<String>? = null): NetworkTraffic = NetworkTraffic(
     id = id,
     sessionId = sessionId,
     method = method,

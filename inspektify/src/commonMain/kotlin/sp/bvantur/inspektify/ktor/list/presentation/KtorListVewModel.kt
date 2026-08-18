@@ -10,6 +10,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -20,6 +21,7 @@ import sp.bvantur.inspektify.ktor.core.presentation.SingleEventHandlerImpl
 import sp.bvantur.inspektify.ktor.core.presentation.ViewModelUserActionHandler
 import sp.bvantur.inspektify.ktor.core.presentation.ViewStateViewModel
 import sp.bvantur.inspektify.ktor.list.di.KtorListModule.getAllNetworkTrafficDataUseCase
+import sp.bvantur.inspektify.ktor.list.di.KtorListModule.getAllTagsUseCase
 import sp.bvantur.inspektify.ktor.list.di.KtorListModule.getCurrentSessionRetentionPolicy
 import sp.bvantur.inspektify.ktor.list.di.KtorListModule.getSearchSuggestionsUseCase
 import sp.bvantur.inspektify.ktor.list.di.KtorListModule.ktorListRepository
@@ -34,15 +36,20 @@ internal class KtorListVewModel :
     ViewModelUserActionHandler<KtorListUserAction> {
 
     private val searchQueryFlow = MutableStateFlow("")
+    private val selectedTagsFlow = MutableStateFlow<Set<String>>(emptySet())
 
     /**
-     * Paged traffic rows. Filtering happens in SQL, so changing the query restarts paging from the
-     * database instead of filtering an in-memory list.
+     * Paged traffic rows. Both the search query and the selected tags are applied in SQL, so
+     * changing either one restarts paging from the database instead of filtering an in-memory list.
      */
-    val networkTrafficPagingDataFlow: Flow<PagingData<NetworkTrafficListRow>> = searchQueryFlow
-        .debounce { searchQuery -> if (searchQuery.isEmpty()) 0L else SEARCH_DEBOUNCE }
+    val networkTrafficPagingDataFlow: Flow<PagingData<NetworkTrafficListRow>> = combine(
+        searchQueryFlow.debounce { searchQuery -> if (searchQuery.isEmpty()) 0L else SEARCH_DEBOUNCE },
+        selectedTagsFlow
+    ) { searchQuery, selectedTags -> searchQuery to selectedTags }
         .distinctUntilChanged()
-        .flatMapLatest { searchQuery -> getAllNetworkTrafficDataUseCase(searchQuery) }
+        .flatMapLatest { (searchQuery, selectedTags) ->
+            getAllNetworkTrafficDataUseCase(searchQuery, selectedTags)
+        }
         .cachedIn(viewModelScope)
 
     override fun initialLoadData() {
@@ -51,6 +58,16 @@ internal class KtorListVewModel :
                 emitViewState { viewState ->
                     viewState.copy(suggestions = suggestions)
                 }
+            }
+        }
+        viewModelScope.launch {
+            getAllTagsUseCase().collect { tags ->
+                emitViewState { viewState ->
+                    // Tags that disappeared from the database must not stay selected, otherwise the
+                    // list would keep filtering on a chip that is no longer shown.
+                    viewState.copy(allTags = tags, selectedTags = viewState.selectedTags intersect tags.toSet())
+                }
+                selectedTagsFlow.value = selectedTagsFlow.value intersect tags.toSet()
             }
         }
     }
@@ -79,6 +96,18 @@ internal class KtorListVewModel :
             }
 
             is KtorListUserAction.OnSearchQuery -> onSearchQuery(userAction.query)
+            is KtorListUserAction.OnTagFilterToggled -> onTagFilterToggled(userAction.tag)
+        }
+    }
+
+    private fun onTagFilterToggled(tag: String) {
+        val selectedTags = viewStateFlow.value.selectedTags
+        val newSelectedTags = if (tag in selectedTags) selectedTags - tag else selectedTags + tag
+
+        // Feeds the same flatMapLatest as the search query, so a new Pager replaces the current one.
+        selectedTagsFlow.value = newSelectedTags
+        emitViewState { viewState ->
+            viewState.copy(selectedTags = newSelectedTags)
         }
     }
 

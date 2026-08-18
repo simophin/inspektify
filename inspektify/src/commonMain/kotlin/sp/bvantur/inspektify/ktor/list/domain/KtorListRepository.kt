@@ -7,9 +7,11 @@ import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListItem
 
 internal interface KtorListRepository {
 
-    fun getNetworkTrafficItems(searchQuery: String): Flow<PagingData<NetworkTrafficListItem>>
+    fun getNetworkTrafficItems(searchQuery: String, selectedTags: Set<String>): Flow<PagingData<NetworkTrafficListItem>>
 
     fun getSearchSuggestions(): Flow<Set<String>>
+
+    fun getAllTags(): Flow<List<String>>
 
     suspend fun removeAllNetworkTrafficData()
 

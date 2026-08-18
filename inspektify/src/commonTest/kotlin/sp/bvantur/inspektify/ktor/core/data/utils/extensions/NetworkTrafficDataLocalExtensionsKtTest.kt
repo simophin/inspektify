@@ -21,7 +21,7 @@ class NetworkTrafficDataLocalExtensionsKtTest {
         host = null,
         path = null,
         protocol = null,
-        tags = null,
+        tags = "",
         requestTimestamp = null,
         requestPayloadSize = null,
         requestHeadersSize = null,
@@ -101,22 +101,29 @@ class NetworkTrafficDataLocalExtensionsKtTest {
     }
 
     @Test
-    fun `GIVEN tags is null WHEN getTags is called THEN returns empty list`() {
-        val data = networkTrafficDataLocal.copy(tags = null)
+    fun `GIVEN a request without tags WHEN getTags is called THEN returns empty list`() {
+        val data = networkTrafficDataLocal.copy(tags = "")
 
         assertEquals(emptyList(), data.getTags())
     }
 
     @Test
-    fun `GIVEN tags contains blank entries WHEN getTags is called THEN blank entries are dropped`() {
-        val data = networkTrafficDataLocal.copy(tags = listOf("SearchProducts", "   ", "query"))
+    fun `GIVEN concatenated tags WHEN getTags is called THEN they are split and sorted`() {
+        val data = networkTrafficDataLocal.copy(tags = "query${TAG_DELIMITER}SearchProducts")
 
         assertEquals(listOf("SearchProducts", "query"), data.getTags())
     }
 
     @Test
-    fun `GIVEN tags is not null WHEN getTags is called THEN returns actual data`() {
-        val data = networkTrafficDataLocal.copy(tags = listOf("SearchProducts", "query"))
+    fun `GIVEN a tag containing a comma WHEN getTags is called THEN the tag is kept whole`() {
+        val data = networkTrafficDataLocal.copy(tags = "search, products${TAG_DELIMITER}query")
+
+        assertEquals(listOf("query", "search, products"), data.getTags())
+    }
+
+    @Test
+    fun `GIVEN concatenated tags contain blank entries WHEN getTags is called THEN blank entries are dropped`() {
+        val data = networkTrafficDataLocal.copy(tags = "SearchProducts${TAG_DELIMITER}   ${TAG_DELIMITER}query")
 
         assertEquals(listOf("SearchProducts", "query"), data.getTags())
     }

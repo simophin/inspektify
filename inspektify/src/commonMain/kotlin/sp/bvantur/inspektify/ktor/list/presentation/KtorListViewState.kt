@@ -6,6 +6,8 @@ import sp.bvantur.inspektify.ktor.core.presentation.ViewState
 
 internal data class KtorListViewState(
     val suggestions: Set<String> = emptySet(),
+    val allTags: List<String> = emptyList(),
+    val selectedTags: Set<String> = emptySet(),
     val retentionPolicyText: String = "",
     val isSearching: Boolean = false,
     val searchQuery: TextFieldValue = TextFieldValue(""),

@@ -18,7 +18,6 @@ class NetworkTrafficDataExtensionsKtTest {
             host = "example.com",
             path = "/path",
             protocol = "HTTP/1.1",
-            tags = listOf("SearchProducts", "query"),
             requestTimestamp = 1234567890,
             requestHeaders = setOf(
                 "Header1" to listOf("value1", "value2"),
@@ -43,7 +42,7 @@ class NetworkTrafficDataExtensionsKtTest {
             responseHeadersSize = 1024,
             tookDurationInMs = 1000
         )
-        val networkTraffic = networkTrafficDataLocal.toNetworkTraffic()
+        val networkTraffic = networkTrafficDataLocal.toNetworkTraffic(tags = listOf("SearchProducts", "query"))
 
         assertNotNull(networkTraffic as? NetworkTraffic)
         assertEquals(networkTrafficDataLocal.id, networkTraffic.id)
@@ -53,7 +52,7 @@ class NetworkTrafficDataExtensionsKtTest {
         assertEquals(networkTrafficDataLocal.host, networkTraffic.host)
         assertEquals(networkTrafficDataLocal.path, networkTraffic.path)
         assertEquals(networkTrafficDataLocal.protocol, networkTraffic.protocol)
-        assertEquals(networkTrafficDataLocal.tags, networkTraffic.tags)
+        assertEquals(listOf("SearchProducts", "query"), networkTraffic.tags)
         assertEquals(networkTrafficDataLocal.requestTimestamp, networkTraffic.requestTimestamp)
         assertEquals(networkTrafficDataLocal.requestHeaders, networkTraffic.requestHeaders)
         assertEquals(networkTrafficDataLocal.requestPayload, networkTraffic.requestPayload)

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.HourglassBottom
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +59,16 @@ internal fun NetworkPageContent(
     Column(modifier = modifier.fillMaxSize()) {
         val isEmpty = networkTrafficItems.itemCount == 0 &&
             networkTrafficItems.loadState.refresh !is LoadState.Loading
+
+        // Kept outside of the empty check on purpose: a tag filter that matches nothing still has to
+        // be visible so it can be switched off again.
+        if (viewState.allTags.isNotEmpty()) {
+            NetworkTrafficTagFilterRow(
+                allTags = viewState.allTags,
+                selectedTags = viewState.selectedTags,
+                onUserAction = onUserAction
+            )
+        }
 
         if (isEmpty) {
             Text(
@@ -108,6 +119,30 @@ internal fun NetworkPageContent(
                     color = MaterialTheme.colorScheme.onSecondary
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun NetworkTrafficTagFilterRow(
+    allTags: List<String>,
+    selectedTags: Set<String>,
+    onUserAction: (KtorListUserAction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        allTags.forEach { tag ->
+            FilterChip(
+                selected = tag in selectedTags,
+                onClick = { onUserAction(KtorListUserAction.OnTagFilterToggled(tag)) },
+                label = {
+                    Text(text = tag)
+                }
+            )
         }
     }
 }

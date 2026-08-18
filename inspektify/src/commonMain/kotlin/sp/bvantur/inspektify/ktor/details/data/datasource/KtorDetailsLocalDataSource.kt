@@ -9,4 +9,8 @@ internal class KtorDetailsLocalDataSource {
     suspend fun getTransactionDetails(id: Long): NetworkTrafficDataLocal = withContext(dispatcherProvider.io) {
         database.inspektifyDBQueries.getNetworkTrafficById(id)
     }.executeAsOne()
+
+    suspend fun getTransactionTags(id: Long): List<String> = withContext(dispatcherProvider.io) {
+        database.inspektifyDBQueries.getTagsByNetworkTrafficId(id)
+    }.executeAsList()
 }

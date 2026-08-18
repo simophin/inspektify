@@ -17,7 +17,8 @@ internal class KtorDetailsRepositoryImpl : KtorDetailsRepository {
 
     override suspend fun getWholeNetworkTrafficContent(id: Long): String {
         val details = ktorDetailsLocalDataSource.getTransactionDetails(id)
-        return DetailsNetworkTrafficMapper.toNetworkTrafficContent(details)
+        val tags = ktorDetailsLocalDataSource.getTransactionTags(id)
+        return DetailsNetworkTrafficMapper.toNetworkTrafficContent(details, tags)
     }
 
     override suspend fun getTitle(id: Long): String {
@@ -26,7 +27,10 @@ internal class KtorDetailsRepositoryImpl : KtorDetailsRepository {
     }
 
     override suspend fun getTransactionOverviewDetails(id: Long): KtorOverviewData =
-        OverviewNetworkTrafficMapper.toOverviewDomain(ktorDetailsLocalDataSource.getTransactionDetails(id))
+        OverviewNetworkTrafficMapper.toOverviewDomain(
+            data = ktorDetailsLocalDataSource.getTransactionDetails(id),
+            tags = ktorDetailsLocalDataSource.getTransactionTags(id)
+        )
 
     override suspend fun getTransactionRequestPayloadDetails(id: Long): KtorPayloadData =
         PayloadNetworkTrafficMapper.toPayloadDomain(
