@@ -1,6 +1,6 @@
 package sp.bvantur.inspektify.ktor.list.data.mapper
 
-import sp.bvantur.inspektify.GetAllNetworkTrafficForList
+import sp.bvantur.inspektify.GetNetworkTrafficPage
 import sp.bvantur.inspektify.ktor.client.shared.Platform
 import sp.bvantur.inspektify.ktor.core.data.utils.extensions.getDate
 import sp.bvantur.inspektify.ktor.core.data.utils.extensions.getDuration
@@ -17,7 +17,7 @@ import sp.bvantur.inspektify.ktor.core.data.utils.extensions.isFromActiveSession
 import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListItem
 
 internal object NetworkTrafficDataLocalMapper {
-    fun GetAllNetworkTrafficForList.toDomainModel(currentSessionTimestamp: Long): NetworkTrafficListItem {
+    fun GetNetworkTrafficPage.toDomainModel(currentSessionTimestamp: Long): NetworkTrafficListItem {
         val statusCode = getPresentationStatusCode()
         return NetworkTrafficListItem(
             id = id,

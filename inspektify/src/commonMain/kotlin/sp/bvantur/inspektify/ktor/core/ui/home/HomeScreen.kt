@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.launch
 import sp.bvantur.inspektify.ktor.core.extensions.InspektifyExtensionRegistry
 import sp.bvantur.inspektify.ktor.core.presentation.viewModelFactory
@@ -34,6 +35,7 @@ internal fun HomeScreen(onNavigateToNetworkDetails: (Long) -> Unit, onNavigateTo
         factory = viewModelFactory { KtorListVewModel() }
     )
     val networkViewState by networkViewModel.viewStateFlow.collectAsStateWithLifecycle()
+    val networkTrafficItems = networkViewModel.networkTrafficPagingDataFlow.collectAsLazyPagingItems()
     val searchFocusRequester = remember { FocusRequester() }
 
     CollectSingleEventsWithLifecycle(singleEventFlow = networkViewModel.singleEventFlow) { singleEvent ->
@@ -79,6 +81,7 @@ internal fun HomeScreen(onNavigateToNetworkDetails: (Long) -> Unit, onNavigateTo
             when (page) {
                 NETWORK_PAGE_INDEX -> NetworkPageContent(
                     viewState = networkViewState,
+                    networkTrafficItems = networkTrafficItems,
                     onUserAction = networkViewModel::onUserAction
                 )
                 EXTENSIONS_PAGE_INDEX -> ExtensionsPageContent(

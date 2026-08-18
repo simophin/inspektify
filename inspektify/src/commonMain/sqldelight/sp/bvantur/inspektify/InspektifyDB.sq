@@ -34,10 +34,33 @@ CREATE TABLE NetworkTrafficDataLocal (
 getAllNetworkTraffic:
 SELECT * FROM NetworkTrafficDataLocal;
 
-getAllNetworkTrafficForList:
+-- Paging queries for the traffic list. They deliberately select only the columns the list row
+-- needs, leaving the potentially huge payload and header columns in the database.
+-- An empty :searchQuery matches everything.
+countNetworkTraffic:
+SELECT count(*)
+FROM NetworkTrafficDataLocal
+WHERE :searchQuery = ''
+   OR (COALESCE(method, '') || ' ' || COALESCE(path, '') || ' ' || COALESCE(host, '') || ' ' ||
+       COALESCE(CAST(responseStatus AS TEXT), '') || ' ' || COALESCE(tags, '')) LIKE '%' || :searchQuery || '%';
+
+getNetworkTrafficPage:
 SELECT id, method, host, path, protocol, tags, requestTimestamp, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responsePayloadSize, responseHeadersSize
 FROM NetworkTrafficDataLocal
-ORDER BY id DESC;
+WHERE :searchQuery = ''
+   OR (COALESCE(method, '') || ' ' || COALESCE(path, '') || ' ' || COALESCE(host, '') || ' ' ||
+       COALESCE(CAST(responseStatus AS TEXT), '') || ' ' || COALESCE(tags, '')) LIKE '%' || :searchQuery || '%'
+ORDER BY id DESC
+LIMIT :limit OFFSET :offset;
+
+getDistinctStatusCodes:
+SELECT DISTINCT responseStatus FROM NetworkTrafficDataLocal WHERE responseStatus IS NOT NULL ORDER BY responseStatus;
+
+getDistinctMethods:
+SELECT DISTINCT method FROM NetworkTrafficDataLocal WHERE method IS NOT NULL AND method != '' ORDER BY method;
+
+getDistinctTags:
+SELECT DISTINCT tags FROM NetworkTrafficDataLocal WHERE tags IS NOT NULL;
 
 insertNetworkTraffic:
 INSERT OR REPLACE INTO NetworkTrafficDataLocal(id, sessionId, method, url, host, path, protocol, tags, requestTimestamp, requestHeaders, requestPayload, requestContentType, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responseStatusDescription, responseHeaders, responsePayload, responseContentType, responsePayloadSize, responseHeadersSize, tookDurationInMs)

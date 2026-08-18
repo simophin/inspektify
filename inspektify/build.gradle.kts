@@ -175,6 +175,8 @@ kotlin {
                 implementation(libs.cash.sqldelight.primitive.adapters)
                 implementation(libs.cash.sqldelight.coroutines.extensions)
                 implementation(libs.kotlinx.datetime)
+                implementation(libs.androidx.paging.common)
+                implementation(libs.androidx.paging.compose)
             }
         }
         iosMain.dependencies {

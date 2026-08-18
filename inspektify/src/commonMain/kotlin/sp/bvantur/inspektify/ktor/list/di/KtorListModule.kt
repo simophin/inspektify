@@ -7,11 +7,17 @@ import sp.bvantur.inspektify.ktor.list.domain.usecase.GetAllNetworkTrafficDataUs
 import sp.bvantur.inspektify.ktor.list.domain.usecase.GetAllNetworkTrafficDataUseCaseImpl
 import sp.bvantur.inspektify.ktor.list.domain.usecase.GetCurrentSessionRetentionPolicy
 import sp.bvantur.inspektify.ktor.list.domain.usecase.GetCurrentSessionRetentionPolicyImpl
+import sp.bvantur.inspektify.ktor.list.domain.usecase.GetSearchSuggestionsUseCase
+import sp.bvantur.inspektify.ktor.list.domain.usecase.GetSearchSuggestionsUseCaseImpl
 
 internal object KtorListModule {
 
     val getAllNetworkTrafficDataUseCase: GetAllNetworkTrafficDataUseCase by lazy {
         GetAllNetworkTrafficDataUseCaseImpl()
+    }
+
+    val getSearchSuggestionsUseCase: GetSearchSuggestionsUseCase by lazy {
+        GetSearchSuggestionsUseCaseImpl()
     }
 
     val getCurrentSessionRetentionPolicy: GetCurrentSessionRetentionPolicy by lazy {
