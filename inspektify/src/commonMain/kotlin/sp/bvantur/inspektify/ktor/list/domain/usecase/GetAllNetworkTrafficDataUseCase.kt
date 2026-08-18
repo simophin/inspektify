@@ -1,54 +1,31 @@
 package sp.bvantur.inspektify.ktor.list.domain.usecase
 
+import androidx.paging.PagingData
+import androidx.paging.insertSeparators
+import androidx.paging.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import sp.bvantur.inspektify.ktor.core.domain.utils.KtorPresentationConstants
 import sp.bvantur.inspektify.ktor.list.di.KtorListModule.ktorListRepository
-import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListItem
-
-internal typealias GroupedNetworkTrafficData = Map<String, List<NetworkTrafficListItem>>
+import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListRow
 
 internal interface GetAllNetworkTrafficDataUseCase {
-    operator fun invoke(): Flow<Pair<GroupedNetworkTrafficData, Set<String>>>
+    operator fun invoke(searchQuery: String): Flow<PagingData<NetworkTrafficListRow>>
 }
 
 internal class GetAllNetworkTrafficDataUseCaseImpl : GetAllNetworkTrafficDataUseCase {
 
-    override fun invoke(): Flow<Pair<GroupedNetworkTrafficData, Set<String>>> =
-        ktorListRepository.getNetworkTrafficItems().map { data ->
+    override fun invoke(searchQuery: String): Flow<PagingData<NetworkTrafficListRow>> =
+        ktorListRepository.getNetworkTrafficItems(searchQuery).map { pagingData ->
+            pagingData
+                .map { item -> NetworkTrafficListRow.Traffic(item) }
+                .insertSeparators { before, after ->
+                    when {
+                        after == null -> null
+                        before == null || before.item.date != after.item.date ->
+                            NetworkTrafficListRow.DateHeader(date = after.item.date, anchorId = after.item.id)
 
-            val statusCodes = data
-                .asSequence()
-                .distinctBy { it.statusCode }
-                .map { it.statusCode }
-                .filter { it != KtorPresentationConstants.MISSING_DATA }
-                .sortedBy { it.toInt() }
-                .map { it }
-                .toSet()
-
-            val methods = data
-                .distinctBy { it.method }
-                .filter { it.method.isNotBlank() }
-                .map { it.method }.toSet()
-
-            val tags = data
-                .flatMap { it.tags }
-                .distinct()
-                .sorted()
-                .toSet()
-
-            val suggestions = statusCodes + methods + tags
-
-            val groupedNetworkTrafficData: Map<String, List<NetworkTrafficListItem>> = data.map { item ->
-                item to item.date
-            }.groupBy(
-                keySelector = { (_, localDate) ->
-                    localDate
-                },
-                valueTransform = { (item, _) ->
-                    item
+                        else -> null
+                    }
                 }
-            )
-            groupedNetworkTrafficData to suggestions
         }
 }

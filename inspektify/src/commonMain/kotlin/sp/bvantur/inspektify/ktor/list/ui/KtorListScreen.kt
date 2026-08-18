@@ -1,6 +1,5 @@
 package sp.bvantur.inspektify.ktor.list.ui
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,61 +33,70 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
 import org.jetbrains.compose.resources.painterResource
 import sp.bvantur.inspektify.ktor.core.ui.theme.disabled
 import sp.bvantur.inspektify.ktor.core.ui.utils.ColorUtils
 import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListItem
+import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListRow
 import sp.bvantur.inspektify.ktor.list.presentation.KtorListUserAction
 import sp.bvantur.inspektify.ktor.list.presentation.KtorListViewState
 
-@OptIn(ExperimentalFoundationApi::class)
+private const val DATE_HEADER_CONTENT_TYPE = "date-header"
+private const val TRAFFIC_CONTENT_TYPE = "traffic"
+
 @Composable
 internal fun NetworkPageContent(
     viewState: KtorListViewState,
+    networkTrafficItems: LazyPagingItems<NetworkTrafficListRow>,
     onUserAction: (KtorListUserAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        if (viewState.items.isEmpty()) {
+        val isEmpty = networkTrafficItems.itemCount == 0 &&
+            networkTrafficItems.loadState.refresh !is LoadState.Loading
+
+        if (isEmpty) {
             Text(
                 text = "No items",
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
             )
         } else {
-            val networkTrafficItems = if (viewState.isSearching) {
-                viewState.queriedItems
-            } else {
-                viewState.items
-            }
             LazyColumn(modifier = Modifier.weight(1f)) {
-                networkTrafficItems.forEach { (date, items) ->
-                    stickyHeader(key = date) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondary)
-                                .clickable { }
-                        ) {
-                            Text(
-                                text = date,
-                                color = MaterialTheme.colorScheme.onSecondary,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(8.dp).align(Alignment.Center)
-                            )
+                items(
+                    count = networkTrafficItems.itemCount,
+                    key = networkTrafficItems.itemKey { row ->
+                        when (row) {
+                            is NetworkTrafficListRow.DateHeader -> "date-header-${row.anchorId}"
+                            is NetworkTrafficListRow.Traffic -> row.item.id
+                        }
+                    },
+                    contentType = networkTrafficItems.itemContentType { row ->
+                        when (row) {
+                            is NetworkTrafficListRow.DateHeader -> DATE_HEADER_CONTENT_TYPE
+                            is NetworkTrafficListRow.Traffic -> TRAFFIC_CONTENT_TYPE
                         }
                     }
-                    items(
-                        items.size,
-                        key = { items[it].id }
-                    ) { index ->
-                        val networkTrafficItem = items[index]
+                ) { index ->
+                    when (val row = networkTrafficItems[index]) {
+                        is NetworkTrafficListRow.DateHeader -> NetworkTrafficDateHeader(date = row.date)
+                        is NetworkTrafficListRow.Traffic -> {
+                            val networkTrafficItem = row.item
 
-                        NetworkTrafficItem(
-                            item = networkTrafficItem,
-                            modifier = Modifier.clickable {
-                                if (!networkTrafficItem.isCompleted) return@clickable
+                            NetworkTrafficItem(
+                                item = networkTrafficItem,
+                                modifier = Modifier.clickable {
+                                    if (!networkTrafficItem.isCompleted) return@clickable
 
-                                onUserAction(KtorListUserAction.OnNetworkTrafficItemSelected(networkTrafficItem.id))
-                            }
-                        )
+                                    onUserAction(KtorListUserAction.OnNetworkTrafficItemSelected(networkTrafficItem.id))
+                                }
+                            )
+                        }
+
+                        null -> Unit
                     }
                 }
             }
@@ -101,6 +109,20 @@ internal fun NetworkPageContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun NetworkTrafficDateHeader(date: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondary)
+    ) {
+        Text(
+            text = date,
+            color = MaterialTheme.colorScheme.onSecondary,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(8.dp).align(Alignment.Center)
+        )
     }
 }
 

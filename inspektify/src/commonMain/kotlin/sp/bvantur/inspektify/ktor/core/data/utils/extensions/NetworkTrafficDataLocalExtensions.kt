@@ -11,7 +11,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.DrawableResource
-import sp.bvantur.inspektify.GetAllNetworkTrafficForList
+import sp.bvantur.inspektify.GetNetworkTrafficPage
 import sp.bvantur.inspektify.NetworkTrafficDataLocal
 import sp.bvantur.inspektify.ktor.core.domain.utils.ByteSizeUtils
 import sp.bvantur.inspektify.ktor.core.domain.utils.DateTimeUtils
@@ -20,7 +20,7 @@ import sp.bvantur.inspektify.ktor.list.domain.model.StatusCode
 import sp.bvantur.inspektify.ktor.list.domain.model.StatusColor
 import kotlin.time.ExperimentalTime
 
-internal fun GetAllNetworkTrafficForList.getPresentationStatusCode(): StatusCode {
+internal fun GetNetworkTrafficPage.getPresentationStatusCode(): StatusCode {
     responseStatus
         ?: return StatusCode(statusCode = KtorPresentationConstants.MISSING_DATA, statusColor = StatusColor.ORANGE)
 
@@ -34,7 +34,7 @@ internal fun GetAllNetworkTrafficForList.getPresentationStatusCode(): StatusCode
     )
 }
 
-internal fun GetAllNetworkTrafficForList.getMethodWithPath(): String {
+internal fun GetNetworkTrafficPage.getMethodWithPath(): String {
     if (method == null) return path ?: ""
     if (path == null) return "$method"
 
@@ -43,14 +43,14 @@ internal fun GetAllNetworkTrafficForList.getMethodWithPath(): String {
 
 internal fun NetworkTrafficDataLocal.getTags(): List<String> = tags?.filter { it.isNotBlank() }.orEmpty()
 
-internal fun GetAllNetworkTrafficForList.getTags(): List<String> = tags?.filter { it.isNotBlank() }.orEmpty()
+internal fun GetNetworkTrafficPage.getTags(): List<String> = tags?.filter { it.isNotBlank() }.orEmpty()
 
-internal fun GetAllNetworkTrafficForList.getHost(): String = host ?: ""
+internal fun GetNetworkTrafficPage.getHost(): String = host ?: ""
 
-internal fun GetAllNetworkTrafficForList.getMethod(): String = method ?: ""
+internal fun GetNetworkTrafficPage.getMethod(): String = method ?: ""
 
 @OptIn(ExperimentalTime::class)
-internal fun GetAllNetworkTrafficForList.getTime(systemTimeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+internal fun GetNetworkTrafficPage.getTime(systemTimeZone: TimeZone = TimeZone.currentSystemDefault()): String {
     requestTimestamp ?: return KtorPresentationConstants.MISSING_DATA
 
     val instant = Instant.fromEpochMilliseconds(requestTimestamp)
@@ -59,13 +59,13 @@ internal fun GetAllNetworkTrafficForList.getTime(systemTimeZone: TimeZone = Time
     return DateTimeUtils.toTimeString(localDateTime)
 }
 
-internal fun GetAllNetworkTrafficForList.getDuration(): String {
+internal fun GetNetworkTrafficPage.getDuration(): String {
     if (responseTimestamp == null || requestTimestamp == null) return KtorPresentationConstants.MISSING_DATA
 
     return DateTimeUtils.toTextWithTimeUnit(responseTimestamp - requestTimestamp)
 }
 
-internal fun GetAllNetworkTrafficForList.getSize(): String {
+internal fun GetNetworkTrafficPage.getSize(): String {
     var allSize = 0L
     if (responsePayloadSize != null) {
         allSize += responsePayloadSize
@@ -83,21 +83,21 @@ internal fun GetAllNetworkTrafficForList.getSize(): String {
     return ByteSizeUtils.toTextWithByteUnit(allSize)
 }
 
-internal fun GetAllNetworkTrafficForList.getHostImage(): DrawableResource = if (protocol == "https") {
+internal fun GetNetworkTrafficPage.getHostImage(): DrawableResource = if (protocol == "https") {
     Res.drawable.img_https_icon
 } else {
     Res.drawable.img_http_icon
 }
 
 @OptIn(ExperimentalTime::class)
-internal fun GetAllNetworkTrafficForList.getDate(systemTimeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+internal fun GetNetworkTrafficPage.getDate(systemTimeZone: TimeZone = TimeZone.currentSystemDefault()): String {
     val instant = Instant.fromEpochMilliseconds(requestTimestamp ?: 0L)
 
     return DateTimeUtils.formatDate(instant.toLocalDateTime(systemTimeZone).date)
 }
 
-internal fun GetAllNetworkTrafficForList.isCompleted(): Boolean = responseStatus != null
+internal fun GetNetworkTrafficPage.isCompleted(): Boolean = responseStatus != null
 
 @Suppress("UnnecessaryParentheses")
-internal fun GetAllNetworkTrafficForList.isFromActiveSession(sessionTimestamp: Long): Boolean =
+internal fun GetNetworkTrafficPage.isFromActiveSession(sessionTimestamp: Long): Boolean =
     (requestTimestamp ?: 0L) >= sessionTimestamp

@@ -6,7 +6,7 @@ import inspektifyroot.inspektify.generated.resources.Res
 import inspektifyroot.inspektify.generated.resources.img_http_icon
 import inspektifyroot.inspektify.generated.resources.img_https_icon
 import kotlinx.datetime.TimeZone
-import sp.bvantur.inspektify.GetAllNetworkTrafficForList
+import sp.bvantur.inspektify.GetNetworkTrafficPage
 import sp.bvantur.inspektify.ktor.core.domain.utils.KtorPresentationConstants
 import sp.bvantur.inspektify.ktor.list.domain.model.StatusColor
 import kotlin.test.Test
@@ -15,7 +15,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NetworkTrafficDataLocalExtensionsKtTest {
-    private val networkTrafficDataLocal = GetAllNetworkTrafficForList(
+    private val networkTrafficDataLocal = GetNetworkTrafficPage(
         id = 1,
         method = null,
         host = null,
