@@ -15,9 +15,7 @@ internal interface GetAllNetworkTrafficDataUseCase {
 internal class GetAllNetworkTrafficDataUseCaseImpl : GetAllNetworkTrafficDataUseCase {
 
     override fun invoke(): Flow<Pair<GroupedNetworkTrafficData, Set<String>>> =
-        ktorListRepository.getNetworkTrafficItems().map { items ->
-
-            val data = items.reversed()
+        ktorListRepository.getNetworkTrafficItems().map { data ->
 
             val statusCodes = data
                 .asSequence()

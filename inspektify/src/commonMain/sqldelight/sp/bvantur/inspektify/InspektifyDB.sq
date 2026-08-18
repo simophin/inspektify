@@ -34,6 +34,11 @@ CREATE TABLE NetworkTrafficDataLocal (
 getAllNetworkTraffic:
 SELECT * FROM NetworkTrafficDataLocal;
 
+getAllNetworkTrafficForList:
+SELECT id, method, host, path, protocol, tags, requestTimestamp, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responsePayloadSize, responseHeadersSize
+FROM NetworkTrafficDataLocal
+ORDER BY id DESC;
+
 insertNetworkTraffic:
 INSERT OR REPLACE INTO NetworkTrafficDataLocal(id, sessionId, method, url, host, path, protocol, tags, requestTimestamp, requestHeaders, requestPayload, requestContentType, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responseStatusDescription, responseHeaders, responsePayload, responseContentType, responsePayloadSize, responseHeadersSize, tookDurationInMs)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
