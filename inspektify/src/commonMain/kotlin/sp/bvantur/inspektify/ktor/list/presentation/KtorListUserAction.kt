@@ -11,4 +11,5 @@ internal sealed interface KtorListUserAction : UserAction {
     data object OnClearSearchQuery : KtorListUserAction
     data class OnSearchSuggestionQuery(val suggestion: String) : KtorListUserAction
     data class OnSearchQuery(val query: TextFieldValue) : KtorListUserAction
+    data class OnTagFilterToggled(val tag: String) : KtorListUserAction
 }

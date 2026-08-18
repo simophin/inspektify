@@ -11,7 +11,6 @@ CREATE TABLE NetworkTrafficDataLocal (
   host TEXT,
   path TEXT,
   protocol TEXT,
-  tags TEXT AS List<String>,
 
   requestTimestamp INTEGER,
   requestHeaders TEXT AS Set<Map.Entry<String, List<String>>>,
@@ -31,25 +30,59 @@ CREATE TABLE NetworkTrafficDataLocal (
   tookDurationInMs INTEGER
 );
 
+CREATE TABLE NetworkTrafficTagLocal (
+  networkTrafficId INTEGER NOT NULL REFERENCES NetworkTrafficDataLocal(id) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  PRIMARY KEY (networkTrafficId, tag)
+);
+
+CREATE INDEX networkTrafficTagLocalTag ON NetworkTrafficTagLocal(tag);
+
 getAllNetworkTraffic:
 SELECT * FROM NetworkTrafficDataLocal;
 
 -- Paging queries for the traffic list. They deliberately select only the columns the list row
 -- needs, leaving the potentially huge payload and header columns in the database.
--- An empty :searchQuery matches everything.
+--
+-- The two queries below MUST keep byte identical WHERE clauses: the paging source derives page
+-- offsets and the remaining item count from countNetworkTraffic while reading rows from
+-- getNetworkTrafficPage, so any predicate that applies to one but not the other silently corrupts
+-- page boundaries. Both take the same filter parameters and are always called with the same values.
+--
+-- An empty :searchQuery matches everything, and :isTagFilterActive = 0 disables the tag filter
+-- (:selectedTags is then never evaluated, but still has to be bound to a non empty list).
 countNetworkTraffic:
 SELECT count(*)
 FROM NetworkTrafficDataLocal
-WHERE :searchQuery = ''
-   OR (COALESCE(method, '') || ' ' || COALESCE(path, '') || ' ' || COALESCE(host, '') || ' ' ||
-       COALESCE(CAST(responseStatus AS TEXT), '') || ' ' || COALESCE(tags, '')) LIKE '%' || :searchQuery || '%';
+WHERE (CAST(:isTagFilterActive AS INTEGER) = 0
+       OR EXISTS (SELECT 1 FROM NetworkTrafficTagLocal
+                  WHERE NetworkTrafficTagLocal.networkTrafficId = NetworkTrafficDataLocal.id
+                    AND NetworkTrafficTagLocal.tag IN :selectedTags))
+  AND (:searchQuery = ''
+       OR (COALESCE(method, '') || ' ' || COALESCE(path, '') || ' ' || COALESCE(host, '') || ' ' ||
+           COALESCE(CAST(responseStatus AS TEXT), '')) LIKE '%' || :searchQuery || '%'
+       OR EXISTS (SELECT 1 FROM NetworkTrafficTagLocal
+                  WHERE NetworkTrafficTagLocal.networkTrafficId = NetworkTrafficDataLocal.id
+                    AND NetworkTrafficTagLocal.tag LIKE '%' || :searchQuery || '%'));
 
 getNetworkTrafficPage:
-SELECT id, method, host, path, protocol, tags, requestTimestamp, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responsePayloadSize, responseHeadersSize
+-- group_concat returns NULL when a request has no tags at all, so it is coalesced to an empty
+-- string here to match the non null type SQLDelight infers for the column.
+SELECT id, method, host, path, protocol,
+       COALESCE((SELECT group_concat(tag, char(31)) FROM NetworkTrafficTagLocal
+                 WHERE NetworkTrafficTagLocal.networkTrafficId = NetworkTrafficDataLocal.id), '') AS tags,
+       requestTimestamp, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responsePayloadSize, responseHeadersSize
 FROM NetworkTrafficDataLocal
-WHERE :searchQuery = ''
-   OR (COALESCE(method, '') || ' ' || COALESCE(path, '') || ' ' || COALESCE(host, '') || ' ' ||
-       COALESCE(CAST(responseStatus AS TEXT), '') || ' ' || COALESCE(tags, '')) LIKE '%' || :searchQuery || '%'
+WHERE (CAST(:isTagFilterActive AS INTEGER) = 0
+       OR EXISTS (SELECT 1 FROM NetworkTrafficTagLocal
+                  WHERE NetworkTrafficTagLocal.networkTrafficId = NetworkTrafficDataLocal.id
+                    AND NetworkTrafficTagLocal.tag IN :selectedTags))
+  AND (:searchQuery = ''
+       OR (COALESCE(method, '') || ' ' || COALESCE(path, '') || ' ' || COALESCE(host, '') || ' ' ||
+           COALESCE(CAST(responseStatus AS TEXT), '')) LIKE '%' || :searchQuery || '%'
+       OR EXISTS (SELECT 1 FROM NetworkTrafficTagLocal
+                  WHERE NetworkTrafficTagLocal.networkTrafficId = NetworkTrafficDataLocal.id
+                    AND NetworkTrafficTagLocal.tag LIKE '%' || :searchQuery || '%'))
 ORDER BY id DESC
 LIMIT :limit OFFSET :offset;
 
@@ -59,12 +92,50 @@ SELECT DISTINCT responseStatus FROM NetworkTrafficDataLocal WHERE responseStatus
 getDistinctMethods:
 SELECT DISTINCT method FROM NetworkTrafficDataLocal WHERE method IS NOT NULL AND method != '' ORDER BY method;
 
-getDistinctTags:
-SELECT DISTINCT tags FROM NetworkTrafficDataLocal WHERE tags IS NOT NULL;
+-- Every request is written twice under the same id: once when it is sent and once when the response
+-- arrives. That used to be an INSERT OR REPLACE, but REPLACE resolves the conflict by DELETEing the
+-- existing row, which with foreign keys enabled cascades into NetworkTrafficTagLocal and drops the
+-- tags of the request. SQLite's native upsert (ON CONFLICT DO UPDATE) would avoid that, but it
+-- needs SQLite 3.24 (Android API 30) and this library still supports API 21, so the classic
+-- two statement upsert is used instead: neither statement ever deletes the parent row.
+insertOrIgnoreNetworkTraffic:
+INSERT OR IGNORE INTO NetworkTrafficDataLocal(id, sessionId, method, url, host, path, protocol, requestTimestamp, requestHeaders, requestPayload, requestContentType, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responseStatusDescription, responseHeaders, responsePayload, responseContentType, responsePayloadSize, responseHeadersSize, tookDurationInMs)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-insertNetworkTraffic:
-INSERT OR REPLACE INTO NetworkTrafficDataLocal(id, sessionId, method, url, host, path, protocol, tags, requestTimestamp, requestHeaders, requestPayload, requestContentType, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responseStatusDescription, responseHeaders, responsePayload, responseContentType, responsePayloadSize, responseHeadersSize, tookDurationInMs)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+updateNetworkTraffic:
+UPDATE NetworkTrafficDataLocal
+SET sessionId = :sessionId,
+    method = :method,
+    url = :url,
+    host = :host,
+    path = :path,
+    protocol = :protocol,
+    requestTimestamp = :requestTimestamp,
+    requestHeaders = :requestHeaders,
+    requestPayload = :requestPayload,
+    requestContentType = :requestContentType,
+    requestPayloadSize = :requestPayloadSize,
+    requestHeadersSize = :requestHeadersSize,
+    responseTimestamp = :responseTimestamp,
+    responseStatus = :responseStatus,
+    responseStatusDescription = :responseStatusDescription,
+    responseHeaders = :responseHeaders,
+    responsePayload = :responsePayload,
+    responseContentType = :responseContentType,
+    responsePayloadSize = :responsePayloadSize,
+    responseHeadersSize = :responseHeadersSize,
+    tookDurationInMs = :tookDurationInMs
+WHERE id = :id;
+
+insertNetworkTrafficTag:
+INSERT OR REPLACE INTO NetworkTrafficTagLocal(networkTrafficId, tag)
+VALUES (?, ?);
+
+getDistinctTags:
+SELECT DISTINCT tag FROM NetworkTrafficTagLocal ORDER BY tag;
+
+getTagsByNetworkTrafficId:
+SELECT tag FROM NetworkTrafficTagLocal WHERE networkTrafficId = ? ORDER BY tag;
 
 getNetworkTrafficById:
 SELECT * FROM NetworkTrafficDataLocal WHERE id = ?;
@@ -72,11 +143,24 @@ SELECT * FROM NetworkTrafficDataLocal WHERE id = ?;
 removeAllNetworkTrafficData:
 DELETE FROM NetworkTrafficDataLocal;
 
+removeAllNetworkTrafficTags:
+DELETE FROM NetworkTrafficTagLocal;
+
 removeNetworkTrafficOlderThan:
 DELETE FROM NetworkTrafficDataLocal WHERE requestTimestamp < ?;
+
+removeNetworkTrafficTagsOlderThan:
+DELETE FROM NetworkTrafficTagLocal WHERE networkTrafficId IN (
+  SELECT id FROM NetworkTrafficDataLocal WHERE requestTimestamp < ?
+);
 
 getDistinctSessionIds:
 SELECT DISTINCT sessionId FROM NetworkTrafficDataLocal ORDER BY sessionId DESC;
 
 removeRowsBySessionId:
 DELETE FROM NetworkTrafficDataLocal WHERE sessionId = ?;
+
+removeTagRowsBySessionId:
+DELETE FROM NetworkTrafficTagLocal WHERE networkTrafficId IN (
+  SELECT id FROM NetworkTrafficDataLocal WHERE sessionId = ?
+);

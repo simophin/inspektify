@@ -23,7 +23,10 @@ private const val MAX_ITEMS_IN_MEMORY = 200
 
 internal class KtorListRepositoryImpl : KtorListRepository {
 
-    override fun getNetworkTrafficItems(searchQuery: String): Flow<PagingData<NetworkTrafficListItem>> = Pager(
+    override fun getNetworkTrafficItems(
+        searchQuery: String,
+        selectedTags: Set<String>
+    ): Flow<PagingData<NetworkTrafficListItem>> = Pager(
         config = PagingConfig(
             pageSize = PAGE_SIZE,
             prefetchDistance = PREFETCH_DISTANCE,
@@ -31,7 +34,9 @@ internal class KtorListRepositoryImpl : KtorListRepository {
             enablePlaceholders = false,
             maxSize = MAX_ITEMS_IN_MEMORY
         ),
-        pagingSourceFactory = { ktorListLocalDataSource.getNetworkTrafficPagingSource(searchQuery) }
+        pagingSourceFactory = {
+            ktorListLocalDataSource.getNetworkTrafficPagingSource(searchQuery, selectedTags)
+        }
     ).flow.map { pagingData ->
         val currentSessionTimestamp = ktorListLocalDataSource.getCurrentSessionTimestamp()
         pagingData.map { singleItem -> singleItem.toDomainModel(currentSessionTimestamp) }
@@ -40,14 +45,17 @@ internal class KtorListRepositoryImpl : KtorListRepository {
     override fun getSearchSuggestions(): Flow<Set<String>> = combine(
         ktorListLocalDataSource.getDistinctStatusCodes(),
         ktorListLocalDataSource.getDistinctMethods(),
-        ktorListLocalDataSource.getDistinctTags()
+        getAllTags()
     ) { statusCodes, methods, tags ->
         val statusCodeSuggestions = statusCodes.map { statusCode -> statusCode.toString() }
         val methodSuggestions = methods.filter { method -> method.isNotBlank() }
-        val tagSuggestions = tags.flatten().filter { tag -> tag.isNotBlank() }.distinct().sorted()
 
-        (statusCodeSuggestions + methodSuggestions + tagSuggestions).toSet()
+        (statusCodeSuggestions + methodSuggestions + tags).toSet()
     }
+
+    // Shared by the search suggestions and the tag filter chips so both always show the same tags.
+    override fun getAllTags(): Flow<List<String>> = ktorListLocalDataSource.getDistinctTags()
+        .map { tags -> tags.filter { tag -> tag.isNotBlank() } }
 
     override suspend fun removeAllNetworkTrafficData() {
         ktorListLocalDataSource.removeAllNetworkTrafficData()

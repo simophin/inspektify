@@ -1,0 +1,51 @@
+-- Ordering matters here. NetworkTrafficTagLocal has a foreign key onto NetworkTrafficDataLocal, and
+-- on SQLite 3.25+ (with legacy_alter_table off) ALTER TABLE ... RENAME rewrites the foreign key
+-- clauses of every table that references the renamed one. Creating the tag table before the rename
+-- would therefore silently repoint its REFERENCES at NetworkTrafficDataLocalOld, and the DROP below
+-- would leave it dangling. The parent table is rebuilt first so that no foreign key clause exists
+-- at rename time, and the tag table is created afterwards against the final table name.
+--
+-- The rebuild itself drops the old JSON `tags` column: tags now live in NetworkTrafficTagLocal.
+-- SQLite before 3.35 has no ALTER TABLE ... DROP COLUMN, hence the rename/copy/drop dance.
+ALTER TABLE NetworkTrafficDataLocal RENAME TO NetworkTrafficDataLocalOld;
+
+CREATE TABLE NetworkTrafficDataLocal (
+  id INTEGER NOT NULL PRIMARY KEY,
+  sessionId INTEGER NOT NULL,
+  method TEXT,
+  url TEXT,
+  host TEXT,
+  path TEXT,
+  protocol TEXT,
+
+  requestTimestamp INTEGER,
+  requestHeaders TEXT,
+  requestPayload TEXT,
+  requestContentType TEXT,
+  requestPayloadSize INTEGER,
+  requestHeadersSize INTEGER,
+
+  responseTimestamp INTEGER,
+  responseStatus INTEGER,
+  responseStatusDescription TEXT,
+  responseHeaders TEXT,
+  responsePayload TEXT,
+  responseContentType TEXT,
+  responsePayloadSize INTEGER,
+  responseHeadersSize INTEGER,
+  tookDurationInMs INTEGER
+);
+
+INSERT INTO NetworkTrafficDataLocal (id, sessionId, method, url, host, path, protocol, requestTimestamp, requestHeaders, requestPayload, requestContentType, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responseStatusDescription, responseHeaders, responsePayload, responseContentType, responsePayloadSize, responseHeadersSize, tookDurationInMs)
+SELECT id, sessionId, method, url, host, path, protocol, requestTimestamp, requestHeaders, requestPayload, requestContentType, requestPayloadSize, requestHeadersSize, responseTimestamp, responseStatus, responseStatusDescription, responseHeaders, responsePayload, responseContentType, responsePayloadSize, responseHeadersSize, tookDurationInMs
+FROM NetworkTrafficDataLocalOld;
+
+DROP TABLE NetworkTrafficDataLocalOld;
+
+CREATE TABLE NetworkTrafficTagLocal (
+  networkTrafficId INTEGER NOT NULL REFERENCES NetworkTrafficDataLocal(id) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  PRIMARY KEY (networkTrafficId, tag)
+);
+
+CREATE INDEX networkTrafficTagLocalTag ON NetworkTrafficTagLocal(tag);

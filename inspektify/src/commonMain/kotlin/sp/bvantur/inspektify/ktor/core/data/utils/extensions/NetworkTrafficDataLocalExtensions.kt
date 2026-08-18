@@ -12,13 +12,18 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.DrawableResource
 import sp.bvantur.inspektify.GetNetworkTrafficPage
-import sp.bvantur.inspektify.NetworkTrafficDataLocal
 import sp.bvantur.inspektify.ktor.core.domain.utils.ByteSizeUtils
 import sp.bvantur.inspektify.ktor.core.domain.utils.DateTimeUtils
 import sp.bvantur.inspektify.ktor.core.domain.utils.KtorPresentationConstants
 import sp.bvantur.inspektify.ktor.list.domain.model.StatusCode
 import sp.bvantur.inspektify.ktor.list.domain.model.StatusColor
 import kotlin.time.ExperimentalTime
+
+/**
+ * ASCII unit separator. Used instead of a comma so that tags containing punctuation survive the
+ * round trip through `group_concat`.
+ */
+internal const val TAG_DELIMITER: String = "\u001F"
 
 internal fun GetNetworkTrafficPage.getPresentationStatusCode(): StatusCode {
     responseStatus
@@ -41,9 +46,15 @@ internal fun GetNetworkTrafficPage.getMethodWithPath(): String {
     return "$method $path"
 }
 
-internal fun NetworkTrafficDataLocal.getTags(): List<String> = tags?.filter { it.isNotBlank() }.orEmpty()
-
-internal fun GetNetworkTrafficPage.getTags(): List<String> = tags?.filter { it.isNotBlank() }.orEmpty()
+/**
+ * Tags of a paged row arrive as a single [TAG_DELIMITER] separated string, concatenated by the page
+ * query out of [sp.bvantur.inspektify.NetworkTrafficTagLocal] rows. `group_concat` gives no ordering
+ * guarantee, so the tags are sorted here to keep the list rows stable between loads.
+ */
+internal fun GetNetworkTrafficPage.getTags(): List<String> = tags
+    .split(TAG_DELIMITER)
+    .filter { tag -> tag.isNotBlank() }
+    .sorted()
 
 internal fun GetNetworkTrafficPage.getHost(): String = host ?: ""
 

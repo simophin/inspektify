@@ -18,9 +18,9 @@ internal object DetailsNetworkTrafficMapper {
         )
     }
 
-    fun toNetworkTrafficContent(networkTrafficData: NetworkTrafficDataLocal): String {
+    fun toNetworkTrafficContent(networkTrafficData: NetworkTrafficDataLocal, tags: List<String>): String {
         var clipboardText = ""
-        clipboardText += OverviewNetworkTrafficMapper.getOverviewDataAsString(networkTrafficData)
+        clipboardText += OverviewNetworkTrafficMapper.getOverviewDataAsString(networkTrafficData, tags)
         clipboardText += "\n-------------------------------------------------------\n"
         clipboardText += PayloadNetworkTrafficMapper.getRequestDataAsString(networkTrafficData)
         clipboardText += "\n-------------------------------------------------------\n"

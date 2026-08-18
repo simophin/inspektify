@@ -22,12 +22,6 @@ internal object AppComponents {
             override fun encode(value: Set<Map.Entry<String, List<String>>>): String = ""
         }
 
-    private val tagsAdapter = object : ColumnAdapter<List<String>, String> {
-        override fun decode(databaseValue: String): List<String> = emptyList()
-
-        override fun encode(value: List<String>): String = ""
-    }
-
     // Core dependencies - initialized once
     val dispatcherProvider: DispatcherProvider = InspektifyDispatcherProvider()
 
@@ -53,8 +47,7 @@ internal object AppComponents {
             driver = DatabaseDriverProvider.createDriver(),
             NetworkTrafficDataLocalAdapter = NetworkTrafficDataLocal.Adapter(
                 responseHeadersAdapter = listOfNetworkTrafficHeaderAdapter,
-                requestHeadersAdapter = listOfNetworkTrafficHeaderAdapter,
-                tagsAdapter = tagsAdapter
+                requestHeadersAdapter = listOfNetworkTrafficHeaderAdapter
             )
         )
     }

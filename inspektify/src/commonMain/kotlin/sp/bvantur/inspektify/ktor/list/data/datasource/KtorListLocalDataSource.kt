@@ -15,15 +15,39 @@ import sp.bvantur.inspektify.ktor.core.di.AppComponents.dispatcherProvider
 
 internal class KtorListLocalDataSource {
 
-    fun getNetworkTrafficPagingSource(searchQuery: String): PagingSource<Int, GetNetworkTrafficPage> =
-        OffsetQueryPagingSource(
+    fun getNetworkTrafficPagingSource(
+        searchQuery: String,
+        selectedTags: Set<String>
+    ): PagingSource<Int, GetNetworkTrafficPage> {
+        // Both queries have to be filtered exactly the same way, otherwise the paging source pairs a
+        // count with rows it does not describe. The arguments are therefore resolved once here and
+        // shared by both lambdas instead of being derived twice.
+        val isTagFilterActive = if (selectedTags.isEmpty()) 0L else 1L
+        // The tag branch is short circuited when nothing is selected, but the IN list still has to be
+        // rendered, so a placeholder is bound instead of an empty one.
+        val tagFilter = selectedTags.ifEmpty { setOf("") }
+
+        return OffsetQueryPagingSource(
             transacter = database.inspektifyDBQueries,
             context = dispatcherProvider.io,
-            countQuery = { database.inspektifyDBQueries.countNetworkTraffic(searchQuery) },
+            countQuery = {
+                database.inspektifyDBQueries.countNetworkTraffic(
+                    isTagFilterActive = isTagFilterActive,
+                    selectedTags = tagFilter,
+                    searchQuery = searchQuery
+                )
+            },
             pageQuery = { limit, offset ->
-                database.inspektifyDBQueries.getNetworkTrafficPage(searchQuery, limit, offset)
+                database.inspektifyDBQueries.getNetworkTrafficPage(
+                    isTagFilterActive = isTagFilterActive,
+                    selectedTags = tagFilter,
+                    searchQuery = searchQuery,
+                    limit = limit,
+                    offset = offset
+                )
             }
         )
+    }
 
     fun getDistinctStatusCodes(): Flow<List<Long>> = database.inspektifyDBQueries
         .getDistinctStatusCodes()
@@ -37,7 +61,7 @@ internal class KtorListLocalDataSource {
         .mapToList(dispatcherProvider.default)
         .flowOn(dispatcherProvider.io)
 
-    fun getDistinctTags(): Flow<List<List<String>>> = database.inspektifyDBQueries
+    fun getDistinctTags(): Flow<List<String>> = database.inspektifyDBQueries
         .getDistinctTags()
         .asFlow()
         .mapToList(dispatcherProvider.default)
@@ -45,7 +69,10 @@ internal class KtorListLocalDataSource {
 
     suspend fun removeAllNetworkTrafficData() {
         withContext(dispatcherProvider.io) {
-            database.inspektifyDBQueries.removeAllNetworkTrafficData()
+            database.transaction {
+                database.inspektifyDBQueries.removeAllNetworkTrafficTags()
+                database.inspektifyDBQueries.removeAllNetworkTrafficData()
+            }
         }
     }
 

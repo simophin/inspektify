@@ -9,13 +9,13 @@ import sp.bvantur.inspektify.ktor.list.di.KtorListModule.ktorListRepository
 import sp.bvantur.inspektify.ktor.list.domain.model.NetworkTrafficListRow
 
 internal interface GetAllNetworkTrafficDataUseCase {
-    operator fun invoke(searchQuery: String): Flow<PagingData<NetworkTrafficListRow>>
+    operator fun invoke(searchQuery: String, selectedTags: Set<String>): Flow<PagingData<NetworkTrafficListRow>>
 }
 
 internal class GetAllNetworkTrafficDataUseCaseImpl : GetAllNetworkTrafficDataUseCase {
 
-    override fun invoke(searchQuery: String): Flow<PagingData<NetworkTrafficListRow>> =
-        ktorListRepository.getNetworkTrafficItems(searchQuery).map { pagingData ->
+    override fun invoke(searchQuery: String, selectedTags: Set<String>): Flow<PagingData<NetworkTrafficListRow>> =
+        ktorListRepository.getNetworkTrafficItems(searchQuery, selectedTags).map { pagingData ->
             pagingData
                 .map { item -> NetworkTrafficListRow.Traffic(item) }
                 .insertSeparators { before, after ->
